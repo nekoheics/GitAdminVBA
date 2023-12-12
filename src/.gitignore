@@ -1,0 +1,6 @@
+*.tmp
+*.xl*
+~$*.xl*
+bin/old
+!bin/*.xl*
+!src/*

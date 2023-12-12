@@ -1,0 +1,162 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+Private Const Caption As String = "Git管理(&G)"
+Private Const MaxIndex As Long = 6
+
+Private newEventsItems() As EventsItem
+
+Private Type ItemProperties
+    FullName As String
+    Caption As String
+    OnAction As String
+    FaceId As Long
+    BeginGroup As Boolean
+End Type
+
+Private Function MenuItemSetting() As ItemProperties()
+    
+    Dim prop(1 To MaxIndex) As ItemProperties ' 【要注意】MaxIndexをメニュー数にする
+    
+    Dim i As Long
+    
+    ' ---- メニュー開始 ------------------------------------------------------------
+    
+    i = i + 1
+    prop(i).Caption = "リポジトリの作成"
+    prop(i).OnAction = "ModuleGit.CreateNewRepository"
+    prop(i).FaceId = 610
+    prop(i).BeginGroup = False
+    
+    i = i + 1
+    prop(i).Caption = "変更をステージ(&S)"
+    prop(i).OnAction = "ModuleGit.GitStage"
+    prop(i).FaceId = 535
+    prop(i).BeginGroup = True
+
+    i = i + 1
+    prop(i).Caption = "変更をコミット(&C)"
+    prop(i).OnAction = "ModuleGit.GitCommit"
+    prop(i).FaceId = 534
+    prop(i).BeginGroup = False
+
+    i = i + 1
+    prop(i).Caption = "変更をプッシュ(&P)"
+    prop(i).OnAction = "ModuleGit.GitPush"
+    prop(i).FaceId = 533
+    prop(i).BeginGroup = False
+    
+    i = i + 1
+    prop(i).Caption = "トークンを登録"
+    prop(i).OnAction = "ModuleGit.RegisterToken"
+    prop(i).FaceId = 277
+    prop(i).BeginGroup = True
+    
+    i = i + 1
+    prop(i).Caption = "トークンを削除"
+    prop(i).OnAction = "ModuleGit.DeleteToken"
+    prop(i).FaceId = 1786
+    prop(i).BeginGroup = False
+    
+    ' ---- メニュー終了 ------------------------------------------------------------
+    
+    Dim FullName As String: FullName = ThisWorkbook.FullName
+    For i = LBound(prop) To UBound(prop)
+        prop(i).FullName = FullName
+    Next
+    
+    MenuItemSetting = prop
+
+End Function
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    On Error GoTo Catch
+    ' 配列がリセットされてしまっている場合への対応
+    If IsArrayInitialized(newEventsItems) Then
+    
+        Dim i As Long
+        For i = LBound(newEventsItems) To UBound(newEventsItems)
+            Set newEventsItems(i) = Nothing
+        Next
+        
+        Erase newEventsItems
+        
+    End If
+    
+    ' VBEのメニューバーを取得（メニューバーのIndexは、固定値で「1」）
+    Dim VBEMenuBar As CommandBar
+    Set VBEMenuBar = Application.VBE.CommandBars(1)
+    
+    Dim itm As CommandBarControl
+    For Each itm In VBEMenuBar.Controls(Caption).Controls
+        itm.Delete
+    Next
+    VBEMenuBar.Controls(Caption).Delete
+    Exit Sub
+Catch:
+    OutputError "Workbook_BeforeClose"
+End Sub
+
+Private Sub Workbook_Open()
+    ' VBEのメニューバーを取得（メニューバーのIndexは、固定値で「1」）
+    Dim VBEMenuBar As CommandBar
+    Set VBEMenuBar = Application.VBE.CommandBars(1)
+    
+    ' 新しいメニューを作成
+    Dim newMenu As CommandBarControl
+    Set newMenu = VBEMenuBar.Controls.Add(Type:=msoControlPopup)
+    
+    ' メニューのキャプションを設定
+    newMenu.Caption = Caption
+    
+    ' メニューアイテムの設定値を構造体の配列に格
+    Dim prop() As ItemProperties: prop = MenuItemSetting
+    ' イベントアイテムクラスを構造体を使って作成
+    ReDim newEventsItems(LBound(prop) To UBound(prop))
+    Dim i As Long, newMenuItem As CommandBarControl
+    For i = LBound(prop) To UBound(prop)
+        ' メニューにアイテムを追加
+        Set newMenuItem = newMenu.Controls.Add(Type:=msoControlButton)
+        With prop(i)
+            newMenuItem.Caption = .Caption
+            newMenuItem.OnAction = "'" & .FullName & "'!" & .OnAction
+            newMenuItem.FaceId = .FaceId
+            newMenuItem.BeginGroup = .BeginGroup
+        End With
+        ' イベントアイテムクラスの登録
+        Set newEventsItems(i) = New EventsItem: Call newEventsItems(i).Initialize(newMenuItem)
+    Next i
+End Sub
+
+Private Function IsArrayInitialized(arr() As EventsItem) As Boolean
+    On Error GoTo Catch
+    IsArrayInitialized = IsNumeric(UBound(arr))
+    Exit Function
+Catch:
+    IsArrayInitialized = False
+End Function
+
+
+Private Sub test1()
+    Workbook_BeforeClose False
+End Sub
+
+Private Sub test2()
+    Dim cmdbar As CommandBar
+    For Each cmdbar In Application.VBE.CommandBars
+        Debug.Print Format(cmdbar.Index, "00") & " - " & cmdbar.Name
+    Next
+End Sub
+
+Private Sub test3()
+    Application.VBE.CommandBars(13).Controls(0).SetFocus
+End Sub
+    
